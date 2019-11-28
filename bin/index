@@ -1,0 +1,112 @@
+#!/usr/bin/env node
+
+const inquirer = require("inquirer");
+const RC = require("ringcentral");
+const config = require("../config");
+
+async function getPromptAnswers() {
+  const answers = await inquirer.prompt([
+    {
+      type: "input",
+      name: "fromNumber",
+      message: "Please enter fromNumber:"
+    },
+    {
+      type: "password",
+      name: "password",
+      message: "Please enter password:"
+    },
+    {
+      type: "input",
+      name: "extension",
+      message: "Please enter extension:"
+    },
+    {
+      type: "number",
+      name: "sendTimes",
+      message: "Please enter sendTimes:"
+    },
+    {
+      type: "input",
+      name: "toNumber",
+      message: "Please enter toNumber:"
+    },
+    {
+      type: "input",
+      name: "text",
+      message: "Please enter text:"
+    }
+  ]);
+  return answers;
+}
+
+function getPlatform() {
+  const rcsdk = new RC({
+    server: config.RINGCENTRAL_SERVER,
+    appKey: config.RINGCENTRAL_CLIENTID,
+    appSecret: config.RINGCENTRAL_CLIENTSECRET
+  });
+  return rcsdk.platform();
+}
+
+function sendSMS({ platform, fromNumber, toNumber, text }) {
+  return platform
+    .post("/account/~/extension/~/sms", {
+      from: { phoneNumber: fromNumber },
+      to: [{ phoneNumber: toNumber }],
+      text
+    })
+    .then(function(resp) {
+      console.log("SMS sent. Message status: " + resp.json().messageStatus);
+    });
+}
+
+(async function run() {
+  const answers = await getPromptAnswers();
+  const platform = getPlatform();
+  const {
+    fromNumber,
+    toNumber,
+    password,
+    text,
+    sendTimes,
+    extension
+  } = answers;
+  await platform.login({
+    username: fromNumber,
+    password,
+    extension
+  });
+  for (let i = 0; i < sendTimes; ++i) {
+    await sendSMS({ platform, fromNumber, toNumber, text });
+  }
+})();
+
+// RECIPIENT = "<ENTER PHONE NUMBER>";
+
+// RINGCENTRAL_USERNAME = "<YOUR ACCOUNT PHONE NUMBER>";
+// RINGCENTRAL_PASSWORD = "<YOUR ACCOUNT PASSWORD>";
+// RINGCENTRAL_EXTENSION = '<YOUR EXTENSION, PROBABLY "101">';
+
+// var rcsdk = new RC({
+//   server: config.RINGCENTRAL_SERVER,
+//   appKey: config.RINGCENTRAL_CLIENTID,
+//   appSecret: config.RINGCENTRAL_CLIENTSECRET
+// });
+// var platform = rcsdk.platform();
+// platform
+//   .login({
+//     username: getPromptAnswers.fromNumber,
+//     password: getPromptAnswers.password,
+//     extension: getPromptAnswers.extension
+//   })
+//   .then(function(resp) {
+//     send_sms({
+//       fromNumber: getPromptAnswers.fromNumber,
+//       extension: getPromptAnswers.extension,
+//       toNumber: getPromptAnswers.toNumber,
+//       text: "Test"
+//     });
+//   });
+
+// module.exports = {};
